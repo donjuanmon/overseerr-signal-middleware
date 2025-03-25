@@ -16,6 +16,9 @@ if (!SIGNAL_API_URL.endsWith('/v2/send')) {
   SIGNAL_API_URL = `${SIGNAL_API_URL}/v2/send`;
 }
 
+// Base URL for API status checks
+const SIGNAL_BASE_URL = SIGNAL_API_URL.replace('/v2/send', '');
+
 // Parse all recipients from a single environment variable
 const SIGNAL_RECIPIENTS = process.env.SIGNAL_RECIPIENTS ? process.env.SIGNAL_RECIPIENTS.split(',') : [];
 
@@ -75,6 +78,49 @@ function formatMessage(message, event) {
   
   return lines.join('\n');
 }
+
+// Check Signal API health (without sending a message)
+async function checkSignalAPI() {
+  try {
+    // Try to ping the about endpoint
+    const response = await axios.get(`${SIGNAL_BASE_URL}/v1/about`, { timeout: 5000 });
+    return { 
+      ok: response.status >= 200 && response.status < 300,
+      status: response.status,
+      data: response.data 
+    };
+  } catch (error) {
+    return { 
+      ok: false, 
+      error: error.message,
+      status: error.response?.status || 'N/A'
+    };
+  }
+}
+
+// Add a health endpoint
+app.get('/health', async (req, res) => {
+  const health = {
+    status: 'OK',
+    configuration: {
+      signal_api: SIGNAL_API_URL,
+      signal_base: SIGNAL_BASE_URL,
+      signal_number: SIGNAL_NUMBER ? 'Set' : 'Not set',
+      signal_recipients: SIGNAL_RECIPIENTS.length > 0 ? `Set (${SIGNAL_RECIPIENTS.length} recipients)` : 'Not set'
+    }
+  };
+  
+  // Check if Signal API is reachable
+  const apiCheck = await checkSignalAPI();
+  health.signal_api_check = apiCheck;
+  
+  // Return health status
+  if (apiCheck.ok) {
+    res.json(health);
+  } else {
+    res.status(500).json(health);
+  }
+});
 
 app.post('/webhook', async (req, res) => {
   try {
@@ -143,6 +189,12 @@ app.post('/webhook', async (req, res) => {
       }
     }
     
+    // Log the payload for debugging (but truncate the image data)
+    console.log('Signal payload:', JSON.stringify({
+      ...signalPayload,
+      base64_attachments: signalPayload.base64_attachments ? ['[Image data truncated]'] : []
+    }));
+    
     // Send to signal-cli-rest-api
     console.log('Sending to Signal API...');
     const response = await axios.post(SIGNAL_API_URL, signalPayload);
@@ -151,11 +203,32 @@ app.post('/webhook', async (req, res) => {
     res.status(200).send('Notification sent to Signal');
   } catch (error) {
     console.error('Error processing webhook:', error.message);
+    if (error.response) {
+      console.error('Response data:', JSON.stringify(error.response.data || {}));
+      console.error('Response status:', error.response.status);
+    }
     res.status(500).send(`Error: ${error.message}`);
   }
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Middleware server running on port ${PORT}`);
-});
+// Check API at startup
+(async () => {
+  try {
+    console.log(`Middleware server starting - checking Signal API at ${SIGNAL_BASE_URL}/v1/about...`);
+    const apiHealth = await checkSignalAPI();
+    if (apiHealth.ok) {
+      console.log('Signal API is reachable:', apiHealth);
+    } else {
+      console.warn('WARNING: Signal API may not be reachable:', apiHealth);
+      console.warn('This might cause failures when sending notifications.');
+      console.warn('Check your SIGNAL_API_URL configuration and make sure signal-cli-rest-api is running.');
+    }
+  } catch (error) {
+    console.error('Error checking Signal API:', error.message);
+  }
+  
+  // Start server regardless of API check
+  app.listen(PORT, () => {
+    console.log(`Middleware server running on port ${PORT}`);
+  });
+})();
