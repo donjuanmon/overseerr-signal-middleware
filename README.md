@@ -2,6 +2,8 @@
 
 A middleware service that forwards Overseerr notifications to Signal messenger, allowing you to receive updates about your media requests directly in Signal.
 
+Designed to replicate the Telegram notification as closely as possible, this middleware sends messages with emojis and media images when available.
+
 ## Features
 
 - Forwards Overseerr notifications to Signal messenger
@@ -129,6 +131,10 @@ npm install
 # Run the server
 npm start
 ```
+
+## Troubleshooting
+
+It may be necessary to create the group via signal-cli-rest-api before sending messages to it. This can be done with a POST request to `http://your-server:8080/v1/groups/{your-number}`. Using an existing group caused some members to not receive messages.
 
 ## License
 
