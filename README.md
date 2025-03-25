@@ -2,6 +2,8 @@
 
 A middleware service that forwards Overseerr notifications to Signal messenger, allowing you to receive updates about your media requests directly in Signal.
 
+Designed to replicate the Telegram notification as closely as possible, this middleware sends messages with emojis and media images when available.
+
 ## Features
 
 - Forwards Overseerr notifications to Signal messenger
@@ -25,7 +27,7 @@ This middleware requires:
 version: '3'
 services:
   overseerr-signal-middleware:
-    image: ghcr.io/yourusername/overseerr-signal-middleware:latest
+    image: ghcr.io/donjuanmon/overseerr-signal-middleware:latest
     container_name: overseerr-signal-middleware
     restart: unless-stopped
     ports:
@@ -94,9 +96,10 @@ In Overseerr, add a webhook notification agent with the URL pointing to your mid
 
 1. Go to Settings > Notifications > Webhook
 2. Enable the webhook agent
-3. Set the Webhook URL to `http://your-server:3001/webhook`
-4. Set the Content Type to `application/json`
-5. Enable the notification types you want to receive in Signal
+3. Set the Webhook URL to `http://signal-cli-rest-api:3001/webhook`. Note this name is based on the service name in the docker-compose.yml
+4. Leave authorization headers blank
+5. Leave the JSON payload as default
+6. Enable the notification types you want to receive in Signal
 
 ## Setup Instructions
 
@@ -113,12 +116,13 @@ To find a Signal group ID:
 1. Set up the signal-cli-rest-api container
 2. List your groups with: `curl http://your-server:8080/v1/groups/{your-number}`
 3. Use the returned group ID in the `SIGNAL_RECIPIENTS` environment variable
+4. Individual phone numbers can be used as well
 
 ## Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/overseerr-signal-middleware.git
+git clone https://github.com/donjuanmon/overseerr-signal-middleware.git
 cd overseerr-signal-middleware
 
 # Install dependencies
@@ -127,6 +131,10 @@ npm install
 # Run the server
 npm start
 ```
+
+## Troubleshooting
+
+It may be necessary to create the group via signal-cli-rest-api before sending messages to it. This can be done with a POST request to `http://your-server:8080/v1/groups/{your-number}`. Using an existing group caused some members to not receive messages.
 
 ## License
 
