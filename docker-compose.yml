@@ -1,0 +1,13 @@
+version: '3'
+services:
+  overseerr-signal-middleware:
+    image: ${DOCKER_IMAGE:-username/overseerr-signal-middleware:latest}
+    container_name: overseerr-signal-middleware
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - SIGNAL_API_URL=http://signal-cli:8080/v2/send
+      - SIGNAL_NUMBER=+123456789
+      # Can include phone numbers and/or group IDs, comma-separated
+      - SIGNAL_RECIPIENTS=+987654321,+1234567890,group.this.is.a.group.id
