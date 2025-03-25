@@ -2,7 +2,7 @@
 
 A middleware service that forwards Overseerr notifications to Signal messenger, allowing you to receive updates about your media requests directly in Signal.
 
-Designed to replicate the Telegram notification as closely as possible, this middleware sends messages with emojis and media images when available.
+Designed to replicate the Telegram notification as closely as possible.
 
 ## Features
 
