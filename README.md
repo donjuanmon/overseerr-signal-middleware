@@ -33,7 +33,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - SIGNAL_API_URL=http://signal-cli-rest-api:8080/v2/send
+      - SIGNAL_API_URL=http://signal-cli-rest-api:8080
       - SIGNAL_NUMBER=+123456789
       # Can include phone numbers and/or group IDs, comma-separated
       - SIGNAL_RECIPIENTS=+987654321,+1234567890,group.this.is.a.group.id
@@ -77,7 +77,7 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - SIGNAL_API_URL=http://signal-cli-rest-api:8080/v2/send
+      - SIGNAL_API_URL=http://signal-cli-rest-api:8080
       - SIGNAL_NUMBER=+123456789
       - SIGNAL_RECIPIENTS=+987654321,+1234567890,group.this.is.a.group.id
     depends_on:
@@ -86,7 +86,7 @@ services:
 
 ### Environment Variables
 
-- `SIGNAL_API_URL`: URL to the signal-cli-rest-api endpoint
+- `SIGNAL_API_URL`: Base URL to the signal-cli-rest-api endpoint (e.g., `http://signal-cli-rest-api:8080`). The `/v2/send` endpoint will be added automatically.
 - `SIGNAL_NUMBER`: Your Signal phone number used for sending messages
 - `SIGNAL_RECIPIENTS`: Comma-separated list of Signal recipient phone numbers and/or group IDs
 

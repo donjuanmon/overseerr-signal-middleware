@@ -5,8 +5,17 @@ app.use(express.json());
 
 // Configuration from environment variables
 const PORT = process.env.PORT || 3001;
-const SIGNAL_API_URL = process.env.SIGNAL_API_URL;
+let SIGNAL_API_URL = process.env.SIGNAL_API_URL || 'http://signal-cli:8080';
 const SIGNAL_NUMBER = process.env.SIGNAL_NUMBER;
+
+// Ensure the URL ends with /v2/send
+if (!SIGNAL_API_URL.endsWith('/v2/send')) {
+  // Remove any trailing slash first
+  SIGNAL_API_URL = SIGNAL_API_URL.replace(/\/+$/, '');
+  // Then add the path
+  SIGNAL_API_URL = `${SIGNAL_API_URL}/v2/send`;
+}
+
 // Parse all recipients from a single environment variable
 const SIGNAL_RECIPIENTS = process.env.SIGNAL_RECIPIENTS ? process.env.SIGNAL_RECIPIENTS.split(',') : [];
 
