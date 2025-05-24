@@ -180,9 +180,9 @@ app.post('/webhook', async (req, res) => {
           timeout: 5000 // 5 second timeout
         });
 
-        // Resize the image to width=300px, height=450px (change as desired)
+        // Default image size is width=600px, height=900px (change as desired below)
         const resizedBuffer = await sharp(imageResponse.data)
-          .resize(150, 225, { fit: 'cover' }) // Change dimensions as needed
+          .resize(600, 900, { fit: 'cover' }) // Change dimensions as needed
           .jpeg({ quality: 100 }) // You can use .png() if you prefer PNG
           .toBuffer();
 
