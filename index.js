@@ -181,8 +181,8 @@ app.post('/webhook', async (req, res) => {
         // --- Changed section: resize image before sending ---
         // Resize the image to width=300px, height=450px (change as desired)
         const resizedBuffer = await sharp(imageResponse.data)
-          .resize(300, 450, { fit: 'cover' }) // Change dimensions as needed
-          .jpeg({ quality: 80 }) // You can use .png() if you prefer PNG
+          .resize(150, 225, { fit: 'cover' }) // Change dimensions as needed
+          //.jpeg({ quality: 80 }) // You can use .png() if you prefer PNG
           .toBuffer();
 
         // Convert to base64
