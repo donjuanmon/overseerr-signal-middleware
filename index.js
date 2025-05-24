@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const sharp = require('sharp'); // <-- Added for image resizing
 const app = express();
 app.use(express.json());
 
@@ -176,13 +177,21 @@ app.post('/webhook', async (req, res) => {
           responseType: 'arraybuffer',
           timeout: 5000 // 5 second timeout
         });
-        
+
+        // --- Changed section: resize image before sending ---
+        // Resize the image to width=300px, height=450px (change as desired)
+        const resizedBuffer = await sharp(imageResponse.data)
+          .resize(300, 450, { fit: 'cover' }) // Change dimensions as needed
+          .jpeg({ quality: 80 }) // You can use .png() if you prefer PNG
+          .toBuffer();
+
         // Convert to base64
-        const base64Image = Buffer.from(imageResponse.data).toString('base64');
-        
+        const base64Image = resizedBuffer.toString('base64');
+        // --- End changed section ---
+
         // Add to payload
         signalPayload.base64_attachments = [base64Image];
-        console.log('Successfully added image attachment');
+        console.log('Successfully added resized image attachment');
       } catch (imageError) {
         console.error('Error processing image:', imageError.message);
         // Continue without the image if there's an error
