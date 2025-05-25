@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const sharp = require('sharp'); // <-- Added for image resizing
 const app = express();
 app.use(express.json());
 
@@ -19,8 +20,10 @@ if (!SIGNAL_API_URL.endsWith('/v2/send')) {
 // Base URL for API status checks
 const SIGNAL_BASE_URL = SIGNAL_API_URL.replace('/v2/send', '');
 
-// Parse all recipients from a single environment variable
-const SIGNAL_RECIPIENTS = process.env.SIGNAL_RECIPIENTS ? process.env.SIGNAL_RECIPIENTS.split(',') : [];
+// Parse all recipients from a single environment variable, trim whitespace
+const SIGNAL_RECIPIENTS = process.env.SIGNAL_RECIPIENTS
+  ? process.env.SIGNAL_RECIPIENTS.split(',').map(r => r.trim())
+  : [];
 
 // Helper function to safely access nested properties
 function getNestedValue(obj, path, defaultValue = 'unknown') {
@@ -159,14 +162,14 @@ app.post('/webhook', async (req, res) => {
     
     console.log('Formatted message:', finalMessage);
     
-    // Prepare the signal message payload
-    const signalPayload = {
+    // Prepare the base signal message payload (without recipients)
+    const basePayload = {
       message: finalMessage,
-      number: SIGNAL_NUMBER,
-      recipients: SIGNAL_RECIPIENTS
+      number: SIGNAL_NUMBER
     };
-    
+
     // If there's an image URL, try to fetch and attach it
+    let base64Image;
     if (image && image.startsWith('http')) {
       try {
         console.log('Attempting to fetch image:', image);
@@ -176,31 +179,57 @@ app.post('/webhook', async (req, res) => {
           responseType: 'arraybuffer',
           timeout: 5000 // 5 second timeout
         });
-        
+
+        // Default image size is width=600px, height=900px (change as desired below)
+        const resizedBuffer = await sharp(imageResponse.data)
+          .resize(600, 900, { fit: 'cover' }) // Change dimensions as needed
+          .jpeg({ quality: 100 }) // You can use .png() if you prefer PNG
+          .toBuffer();
+
         // Convert to base64
-        const base64Image = Buffer.from(imageResponse.data).toString('base64');
-        
-        // Add to payload
-        signalPayload.base64_attachments = [base64Image];
-        console.log('Successfully added image attachment');
+        base64Image = resizedBuffer.toString('base64');
+        console.log('Successfully added resized image attachment');
       } catch (imageError) {
         console.error('Error processing image:', imageError.message);
         // Continue without the image if there's an error
       }
     }
     
-    // Log the payload for debugging (but truncate the image data)
-    console.log('Signal payload:', JSON.stringify({
-      ...signalPayload,
-      base64_attachments: signalPayload.base64_attachments ? ['[Image data truncated]'] : []
-    }));
+    // Send to each recipient individually
+    let sendErrors = [];
+    for (const recipient of SIGNAL_RECIPIENTS) {
+      const signalPayload = {
+        ...basePayload,
+        recipients: [recipient]
+      };
+      if (base64Image) {
+        signalPayload.base64_attachments = [base64Image];
+      }
+
+      // Log the payload for debugging (but truncate the image data)
+      console.log('Signal payload:', JSON.stringify({
+        ...signalPayload,
+        base64_attachments: signalPayload.base64_attachments ? ['[Image data truncated]'] : []
+      }));
+
+      // Send to signal-cli-rest-api
+      try {
+        console.log(`Sending to Signal API for recipient: ${recipient}...`);
+        const response = await axios.post(SIGNAL_API_URL, signalPayload);
+        console.log('Signal API response:', response.status, response.statusText);
+      } catch (err) {
+        console.error(`Failed to send to recipient ${recipient}:`, err.message);
+        sendErrors.push({ recipient, error: err.message });
+      }
+    }
     
-    // Send to signal-cli-rest-api
-    console.log('Sending to Signal API...');
-    const response = await axios.post(SIGNAL_API_URL, signalPayload);
-    console.log('Signal API response:', response.status, response.statusText);
-    
-    res.status(200).send('Notification sent to Signal');
+    if (sendErrors.length === 0) {
+      res.status(200).send('Notification sent to all Signal recipients');
+    } else if (sendErrors.length === SIGNAL_RECIPIENTS.length) {
+      res.status(500).send(`Failed to send notification to any Signal recipients: ${JSON.stringify(sendErrors)}`);
+    } else {
+      res.status(206).send(`Notification sent to some recipients, but failed for: ${JSON.stringify(sendErrors)}`);
+    }
   } catch (error) {
     console.error('Error processing webhook:', error.message);
     if (error.response) {
