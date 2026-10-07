@@ -139,8 +139,12 @@ app.post('/webhook', async (req, res) => {
     // Media details
     const media = req.body.media || {};
     const media_type = getNestedValue(media, 'media_type');
-    const status = getNestedValue(media, 'status');
-    
+    // 4K requests report their state in status4k; status stays UNKNOWN for 4K-only requests
+    const is4k = String(event).includes('4K');
+    const status = is4k
+      ? (getNestedValue(media, 'status4k', null) || getNestedValue(media, 'status'))
+      : getNestedValue(media, 'status');
+
     // Request details
     const request = req.body.request || {};
     const requestedBy_username = getNestedValue(request, 'requestedBy_username');
